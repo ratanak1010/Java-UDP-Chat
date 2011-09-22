@@ -5,15 +5,16 @@ import java.util.*;
 
 class MessageSender implements Runnable {
     public final static int PORT = 7331;
-    DatagramSocket sock;
-    MessageSender(DatagramSocket s) {
+    private DatagramSocket sock;
+    private String hostname;
+    MessageSender(DatagramSocket s, String h) {
         sock = s;
+        hostname = h;
     }
     private void sendMessage(String s) throws Exception {
         byte buf[] = s.getBytes();
-        InetAddress address = InetAddress.getByName("localhost");
-        DatagramPacket packet = new DatagramPacket(buf, buf.length, 
-                                                           address, PORT);
+        InetAddress address = InetAddress.getByName(hostname);
+        DatagramPacket packet = new DatagramPacket(buf, buf.length, address, PORT);
         sock.send(packet);
     }
     public void run() {
@@ -62,9 +63,16 @@ class MessageReceiver implements Runnable {
 public class ChatClient {
     
     public static void main(String args[]) throws Exception {
+        String host = null;
+        if (args.length < 1) {
+            System.out.println("Usage: java ChatClient <server_hostname>");
+            System.exit(0);
+        } else {
+            host = args[0];
+        }
         DatagramSocket socket = new DatagramSocket();
         MessageReceiver r = new MessageReceiver(socket);
-        MessageSender s = new MessageSender(socket);
+        MessageSender s = new MessageSender(socket, host);
         Thread rt = new Thread(r);
         Thread st = new Thread(s);
         rt.start(); st.start();

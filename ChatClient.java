@@ -1,42 +1,32 @@
-import java.io.*;
-import java.net.*;
-import java.util.*;
+import javax.swing.*;
 
-class Chatclient extends Thread {
-	static ArrayList<PrintWriter> list = new ArrayList<PrintWriter>();
-	Socket socket;
-	PrintWriter writer;
-
-	Chatclient(Socket socket) {
-		this.socket = socket;
+public class ChatClient {
+	public static String getLogonID() {
+		String logonID = "";
 		try {
-			writer = new PrintWriter(socket.getOutputStream());
-			list.add(writer);
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
+			while (logonID.equals("")) {
+				logonID = JOptionPane.showInputDialog("닉네임을 써주세요(다른 사람이 사용 중인 닉네임 생성 불가)");
+			}
+		} catch (NullPointerException e) {
+			System.exit(0);
 		}
+		return logonID;
 	}
 
-	public void run() {
+	public static void main(String args[]) {
+		String id = getLogonID();
 		try {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-			while (true) {
-				String str = reader.readLine();
-				if (str == null)
-					break;
-				for (PrintWriter writer : list) {
-					writer.println(str);
-					writer.flush();
-				}
+			if (args.length == 0) {
+				ClientThread thread = new ClientThread();
+				thread.start();
+				thread.requestLogon(id);
+			} else if (args.length == 1) {
+				ClientThread thread = new ClientThread(args[0]);
+				thread.start();
+				thread.requestLogon(id);
 			}
 		} catch (Exception e) {
-			System.out.println(e.getMessage());
-		} finally {
-			list.remove(writer);
-			try {
-				socket.close();
-			} catch (Exception ignored) {
-			}
+			System.out.println(e);
 		}
 	}
 }

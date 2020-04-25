@@ -1,17 +1,34 @@
+import java.io.*;
 import java.net.*;
 
-class Chatserver {
-	public static void main(String[] args) {
-		ServerSocket serverSocket = null;
+public class ChatServer {
+	public static final int cs_port = 9999;
+	public static final int cs_maxclient = 50;
+
+	public static void main(String args[]) {
 		try {
-			serverSocket = new ServerSocket(9002);
+			ServerSocket ss_socket = new ServerSocket(cs_port);
+			System.out.println("서버소켓 실행 : 클라이언트의 접속을 기다립니다.");
 			while (true) {
-				Socket socket = serverSocket.accept();
-				Thread thread = new Chatclient(socket);
-				thread.start();
+				Socket sock = null;
+				ServerThread client = null;
+				try {
+					sock = ss_socket.accept();
+					client = new ServerThread(sock);
+					client.start();
+				} catch (IOException e) {
+					System.out.println(e);
+					try {
+						if (sock != null)
+							sock.close();
+					} catch (IOException e1) {
+						System.out.println(e1);
+					} finally {
+						sock = null;
+					}
+				}
 			}
-		} catch (Exception e) {
-			System.out.println(e.getMessage());
+		} catch (IOException e) {
 		}
 	}
 }

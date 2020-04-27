@@ -2,440 +2,442 @@ import java.io.*;
 import java.net.*;
 import java.util.*;
 
-public class ServerThread extends Thread
-{
-  private Socket severthread_sock;
-  private DataInputStream severthread_in;
-  private DataOutputStream severthread_out;
-  private StringBuffer severthread_buffer;
-  private WaitRoom severthread_waitRoom;
-  public String severthread_ID;
-  public int severthread_room_Number;
-  private static final int WAITROOM = 0;
+public class ServerThread extends Thread {
+	private Socket server_thread_sock;
+	private DataInputStream server_thread_in;
+	private DataOutputStream server_thread_out;
+	private StringBuffer server_thread_buffer;
+	private WaitRoom server_thread_waitRoom;
+	public String server_thread_ID;
+	public int server_thread_room_Number;
+	private static final int WAITROOM = 0;
 
-  private static final int 로그인요청 = 1001;
-  private static final int 방생성요청 = 1011;
-  private static final int 방입장요청 = 1021;
-  private static final int 방퇴장요청 = 1031;
-  private static final int 로그아웃요청 = 1041;
-  private static final int 송신자요청 = 1051;
-  private static final int 수신자요청 = 1052;
-  private static final int 코스요청 = 1053;
-  private static final int 파일전송요청 = 1061;
+	private static final int 로그인요청 = 9000;
+	private static final int 로그인수락 = 9001;
+	private static final int 로그인거절 = 9002;
+	private static final int 방생성요청 = 8000;
+	private static final int 방생성수락 = 8001;
+	private static final int 방생성거절 = 8002;
+	private static final int 방입장요청 = 7000;
+	private static final int 방입장수락 = 7001;
+	private static final int 방입장거절 = 7002;
+	private static final int 방퇴장요청 = 6000;
+	private static final int 방퇴장수락 = 6001;
+	private static final int 로그아웃요청 = 0000;
+	private static final int 로그아웃수락 = 0001;
+	private static final int 송신자요청 = 5000;
+	private static final int 송신자수락 = 5001;
+	private static final int 수신자요청 = 4000;
+	private static final int 수신자수락 = 4001;
+	private static final int 수신자거절 = 4002;
+	private static final int 강제요청 = 1111;
+	private static final int 강제요청수락 = 1112;
+	private static final int 파일전송요청 = 7777;
+	private static final int 파일전송수락 = 7778;
+	private static final int 파일전송거절 = 7779;
 
-  private static final int 로그인수락 = 2001;
-  private static final int 로그인거절 = 2002;
-  private static final int 방생성수락 = 2011;
-  private static final int 방생성거절 = 2012;
-  private static final int 방입장수락 = 2021;
-  private static final int 방입장거절 = 2022;
-  private static final int 방퇴장수락 = 2031;
-  private static final int 로그아웃수락 = 2041;
-  private static final int 송신자수락 = 2051;
-  private static final int 수신자수락 = 2052;
-  private static final int 수신자거절 = 2053;
-  private static final int 코스요청수락 = 2054;
-  private static final int 파일전송수락 = 2061;
-  private static final int 파일전송거절 = 2062;
-  private static final int 대기자수정 = 2003;
-  private static final int 대기자정보수정 = 2013;
-  private static final int 방사용자수정 = 2023;
+	private static final int 대기자수정 = 2003;
+	private static final int 대기자정보수정 = 2013;
+	private static final int 방사용자수정 = 2023;
 
-  private static final int 사용중인_유저 = 3001;
-  private static final int ERR_SERVERFULL = 3002;
-  private static final int 방포화 = 3011;
-  private static final int 사용자수포화 = 3021;
-  private static final int 틀린비밀번호 = 3022;
-  private static final int 거부됨 = 3031;
-  private static final int 사용자없음 = 3032;
+	private static final int 사용중인_유저 = 3001;
+	private static final int 서버포화 = 5552;
+	private static final int 방포화 = 5554;
+	private static final int 사용자수포화 = 5555;
+	private static final int 틀린비밀번호 = 7575;
+	private static final int 거부됨 = 6666;
+	private static final int 사용자없음 = 4444;
 
-  public ServerThread(Socket sock){
-    try{
-      severthread_sock = sock;
-      severthread_in = new DataInputStream(sock.getInputStream());
-      severthread_out = new DataOutputStream(sock.getOutputStream());
-      severthread_buffer = new StringBuffer(2048);
-      severthread_waitRoom = new WaitRoom();
-    }catch(IOException e){
-      System.out.println(e);
-    }
-  }
+	public ServerThread(Socket sock) {
+		try {
+			server_thread_sock = sock;
+			server_thread_in = new DataInputStream(sock.getInputStream());
+			server_thread_out = new DataOutputStream(sock.getOutputStream());
+			server_thread_buffer = new StringBuffer(2048);
+			server_thread_waitRoom = new WaitRoom();
+		} catch (IOException e) {
+			System.out.println(e);
+		}
+	}
 
-  private void sendErrCode(int message, int errCode) throws IOException{
-    severthread_buffer.setLength(0);
-    severthread_buffer.append(message);
-    severthread_buffer.append(":");
-    severthread_buffer.append(errCode);
-    send(severthread_buffer.toString());
-  }
+	private void sendErrCode(int message, int errCode) throws IOException {
+		server_thread_buffer.setLength(0);
+		server_thread_buffer.append(message);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(errCode);
+		send(server_thread_buffer.toString());
+	}
 
-  private void modifyWaitRoom() throws IOException{
-    severthread_buffer.setLength(0);
-    severthread_buffer.append(대기자정보수정);
-    severthread_buffer.append(":");
-    severthread_buffer.append(severthread_waitRoom.getWaitRoomInfo());
-    broadcast(severthread_buffer.toString(), WAITROOM);
-  }  
-    
-  private void modifyWaitUser() throws IOException{
-    String ids = severthread_waitRoom.getUsers();
-    severthread_buffer.setLength(0);
-    severthread_buffer.append(대기자수정);
-    severthread_buffer.append(":");
-    severthread_buffer.append(ids);
-    broadcast(severthread_buffer.toString(), WAITROOM);
-  }
+	private void 대기자정보수정() throws IOException {
+		server_thread_buffer.setLength(0);
+		server_thread_buffer.append(대기자정보수정);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(server_thread_waitRoom.getWaitRoomInfo());
+		broadcast(server_thread_buffer.toString(), WAITROOM);
+	}
 
-  private void modifyRoomUser(int room_Number, String id, int code) throws IOException{
-    String ids = severthread_waitRoom.getRoomInfo(room_Number);
-    severthread_buffer.setLength(0);
-    severthread_buffer.append(방사용자수정);
-    severthread_buffer.append(":");
-    severthread_buffer.append(id);
-    severthread_buffer.append(":");
-    severthread_buffer.append(code);
-    severthread_buffer.append(":");
-    severthread_buffer.append(ids);
-    broadcast(severthread_buffer.toString(), room_Number);
-  }
+	private void 대기자수정() throws IOException {
+		String ids = server_thread_waitRoom.getUsers();
+		server_thread_buffer.setLength(0);
+		server_thread_buffer.append(대기자수정);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(ids);
+		broadcast(server_thread_buffer.toString(), WAITROOM);
+	}
 
-  private void send(String sendData) throws IOException{
-    synchronized(severthread_out){
+	private void 방사용자수정(int room_Number, String id, int code) throws IOException {
+		String ids = server_thread_waitRoom.getRoomInfo(room_Number);
+		server_thread_buffer.setLength(0);
+		server_thread_buffer.append(방사용자수정);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(id);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(code);
+		server_thread_buffer.append(":");
+		server_thread_buffer.append(ids);
+		broadcast(server_thread_buffer.toString(), room_Number);
+	}
 
-      System.out.println(sendData);
+	private void send(String sendData) throws IOException {
+		synchronized (server_thread_out) {
 
-      severthread_out.writeUTF(sendData);
-      severthread_out.flush();
-    }
-  }
+			System.out.println(sendData);
 
-  private synchronized void broadcast(String sendData, int room_Number) throws IOException{
-    ServerThread client;
-    Hashtable clients = severthread_waitRoom.getClients(room_Number);
-    Enumeration enu = clients.keys();
-    while(enu.hasMoreElements()){
-      client = (ServerThread) clients.get(enu.nextElement());
-      client.send(sendData);
-    }
-  }
-    
-  public void run(){
-    try{
-      while(true){
-        String recvData = severthread_in.readUTF();
+			server_thread_out.writeUTF(sendData);
+			server_thread_out.flush();
+		}
+	}
 
-        System.out.println(recvData);
+	private synchronized void broadcast(String sendData, int room_Number) throws IOException {
+		ServerThread client;
+		Hashtable clients = server_thread_waitRoom.getClients(room_Number);
+		Enumeration enu = clients.keys();
+		while (enu.hasMoreElements()) {
+			client = (ServerThread) clients.get(enu.nextElement());
+			client.send(sendData);
+		}
+	}
 
-        StringTokenizer st = new StringTokenizer(recvData, ":");
-        int command = Integer.parseInt(st.nextToken());
-        switch(command){
-          case 로그인요청 : {
-            severthread_room_Number = WAITROOM;
-            int result;
-            severthread_ID = st.nextToken();
-            result = severthread_waitRoom.addUser(severthread_ID, this);
-            severthread_buffer.setLength(0);
-            if(result == 0){
-              severthread_buffer.append(로그인수락);
-              severthread_buffer.append(":");
-              severthread_buffer.append(severthread_waitRoom.getRooms());
-              send(severthread_buffer.toString());
-              modifyWaitUser();
-              System.out.println(severthread_ID + "의 연결요청 승인");
-            } else {
-              sendErrCode(로그인거절, result);
-            }
-            break;
-          }
-          case 방생성요청 : {
-            String id, roomName, password;
-            int roomMaxUser, result;
-            boolean lock;
+	public void run() {
+		try {
+			while (true) {
+				String recvData = server_thread_in.readUTF();
 
-            id = st.nextToken();
-            String roomInfo = st.nextToken();
-            StringTokenizer room = new StringTokenizer(roomInfo, "'");
-            roomName = room.nextToken();
-            roomMaxUser = Integer.parseInt(room.nextToken());
-            lock = (Integer.parseInt(room.nextToken()) == 0) ? false : true;
-            password = room.nextToken();
+				System.out.println(recvData);
 
-            ChatRoom chatRoom = new ChatRoom(roomName, roomMaxUser,
-            		lock, password, id);
-            result = severthread_waitRoom.addRoom(chatRoom);
-            if (result == 0) {
-              severthread_room_Number = ChatRoom.getroom_Number();
-              boolean temp = chatRoom.addUser(severthread_ID, this);
-              severthread_waitRoom.delUser(severthread_ID);
+				StringTokenizer st = new StringTokenizer(recvData, ":");
+				int command = Integer.parseInt(st.nextToken());
+				switch (command) {
+				case 로그인요청: {
+					server_thread_room_Number = WAITROOM;
+					int result;
+					server_thread_ID = st.nextToken();
+					result = server_thread_waitRoom.addUser(server_thread_ID, this);
+					server_thread_buffer.setLength(0);
+					if (result == 0) {
+						server_thread_buffer.append(로그인수락);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(server_thread_waitRoom.getRooms());
+						send(server_thread_buffer.toString());
+						대기자수정();
+						System.out.println(server_thread_ID + "의 연결요청 승인");
+					} else {
+						sendErrCode(로그인거절, result);
+					}
+					break;
+				}
+				case 방생성요청: {
+					String id, roomName, password;
+					int roomMaxUser, result;
+					boolean lock;
 
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(방생성수락);
-              severthread_buffer.append(":");
-              severthread_buffer.append(severthread_room_Number);
-              send(severthread_buffer.toString());
-              modifyWaitRoom();
-              modifyRoomUser(severthread_room_Number, id, 1);
-            } else {
-              sendErrCode(방생성거절, result);
-            }
-            break;
-          }
-          case 방입장요청 : {
-            String id, password;
-            int room_Number, result;
-            id = st.nextToken();
-            room_Number = Integer.parseInt(st.nextToken());
-            try{
-              password = st.nextToken();
-            }catch(NoSuchElementException e){
-              password = "0";
-            }
-            result = severthread_waitRoom.joinRoom(id, this, room_Number, password);
+					id = st.nextToken();
+					String roomInfo = st.nextToken();
+					StringTokenizer room = new StringTokenizer(roomInfo, "'");
+					roomName = room.nextToken();
+					roomMaxUser = Integer.parseInt(room.nextToken());
+					lock = (Integer.parseInt(room.nextToken()) == 0) ? false : true;
+					password = room.nextToken();
 
-            if (result == 0){
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(방입장수락);
-              severthread_buffer.append(":");
-              severthread_buffer.append(room_Number);
-              severthread_buffer.append(":");
-              severthread_buffer.append(id);
-              severthread_room_Number = room_Number;
-              send(severthread_buffer.toString());
-              modifyRoomUser(room_Number, id, 1);
-              modifyWaitRoom();
-            } else {
-              sendErrCode(방입장거절, result);
-            }
-            break;
-          }
-          case 방퇴장요청 : {
-            String id;
-            int room_Number;
-            boolean updateWaitInfo;
-            id = st.nextToken();
-            room_Number = Integer.parseInt(st.nextToken());
+					ChatRoom chatRoom = new ChatRoom(roomName, roomMaxUser, lock, password, id);
+					result = server_thread_waitRoom.addRoom(chatRoom);
+					if (result == 0) {
+						server_thread_room_Number = ChatRoom.getroom_Number();
+						boolean temp = chatRoom.addUser(server_thread_ID, this);
+						server_thread_waitRoom.delUser(server_thread_ID);
 
-            updateWaitInfo = severthread_waitRoom.quitRoom(id, room_Number, this);
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(방생성수락);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(server_thread_room_Number);
+						send(server_thread_buffer.toString());
+						대기자정보수정();
+						방사용자수정(server_thread_room_Number, id, 1);
+					} else {
+						sendErrCode(방생성거절, result);
+					}
+					break;
+				}
+				case 방입장요청: {
+					String id, password;
+					int room_Number, result;
+					id = st.nextToken();
+					room_Number = Integer.parseInt(st.nextToken());
+					try {
+						password = st.nextToken();
+					} catch (NoSuchElementException e) {
+						password = "0";
+					}
+					result = server_thread_waitRoom.joinRoom(id, this, room_Number, password);
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(방퇴장수락);
-            severthread_buffer.append(":");
-            severthread_buffer.append(id);
-            send(severthread_buffer.toString());
-            severthread_room_Number = WAITROOM;
+					if (result == 0) {
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(방입장수락);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(room_Number);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(id);
+						server_thread_room_Number = room_Number;
+						send(server_thread_buffer.toString());
+						방사용자수정(room_Number, id, 1);
+						대기자정보수정();
+					} else {
+						sendErrCode(방입장거절, result);
+					}
+					break;
+				}
+				case 방퇴장요청: {
+					String id;
+					int room_Number;
+					boolean updateWaitInfo;
+					id = st.nextToken();
+					room_Number = Integer.parseInt(st.nextToken());
 
-            if (updateWaitInfo) {
-              modifyWaitRoom();
-            } else {
-              modifyWaitRoom();
-              modifyRoomUser(room_Number, id, 0);
-            }
-            break;
-          }
-          case 로그아웃요청 : {
-            String id = st.nextToken();
-            severthread_waitRoom.delUser(id);
+					updateWaitInfo = server_thread_waitRoom.quitRoom(id, room_Number, this);
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(로그아웃수락);
-            send(severthread_buffer.toString());
-            modifyWaitUser();
-            release();
-            break;
-          }
-          case 송신자요청 : {
-            String id = st.nextToken();
-            int room_Number = Integer.parseInt(st.nextToken());
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(방퇴장수락);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(id);
+					send(server_thread_buffer.toString());
+					server_thread_room_Number = WAITROOM;
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(송신자수락);
-            severthread_buffer.append(":");
-            severthread_buffer.append(id);
-            severthread_buffer.append(":");
-            severthread_buffer.append(severthread_room_Number);
-            severthread_buffer.append(":");
-            try{
-              String data = st.nextToken();
-              severthread_buffer.append(data);
-            }catch(NoSuchElementException e){}
+					if (updateWaitInfo) {
+						대기자정보수정();
+					} else {
+						대기자정보수정();
+						방사용자수정(room_Number, id, 0);
+					}
+					break;
+				}
+				case 로그아웃요청: {
+					String id = st.nextToken();
+					server_thread_waitRoom.delUser(id);
 
-            broadcast(severthread_buffer.toString(), room_Number);
-            break;
-          }
-          case 수신자요청 : {
-            String id = st.nextToken();
-            int room_Number = Integer.parseInt(st.nextToken());
-            String idTo = st.nextToken(); 
-            
-            Hashtable room = severthread_waitRoom.getClients(room_Number);
-            ServerThread client = null;
-            if ((client = (ServerThread) room.get(idTo)) != null){            
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(수신자수락);
-              severthread_buffer.append(":");
-              severthread_buffer.append(id);
-              severthread_buffer.append(":");
-              severthread_buffer.append(idTo);
-              severthread_buffer.append(":");
-              severthread_buffer.append(severthread_room_Number);
-              severthread_buffer.append(":");
-              try{
-                String data = st.nextToken();
-                severthread_buffer.append(data);
-              }catch(NoSuchElementException e){}
-              client.send(severthread_buffer.toString());
-              send(severthread_buffer.toString());
-              break;
-            } else {
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(수신자거절);
-              severthread_buffer.append(":");
-              severthread_buffer.append(idTo);
-              severthread_buffer.append(":");
-              severthread_buffer.append(severthread_room_Number);
-              send(severthread_buffer.toString());
-              break;
-            }
-          }
-          case 파일전송요청 : {
-            String id = st.nextToken();
-            int room_Number = Integer.parseInt(st.nextToken());
-            String idTo = st.nextToken(); 
-            
-            Hashtable room = severthread_waitRoom.getClients(room_Number);
-            ServerThread client = null;
-            if ((client = (ServerThread) room.get(idTo)) != null){
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(파일전송요청);
-              severthread_buffer.append(":");
-              severthread_buffer.append(id);
-              severthread_buffer.append(":");
-              severthread_buffer.append(severthread_room_Number);
-              client.send(severthread_buffer.toString());
-              break;
-            } else {
-              severthread_buffer.setLength(0);
-              severthread_buffer.append(파일전송거절);
-              severthread_buffer.append(":");
-              severthread_buffer.append(사용자없음);
-              severthread_buffer.append(":");
-              severthread_buffer.append(idTo);
-              send(severthread_buffer.toString());
-              break;
-            }
-          }
-          case 파일전송거절 : {
-            String id = st.nextToken();
-            int room_Number = Integer.parseInt(st.nextToken());
-            String idTo = st.nextToken();
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(로그아웃수락);
+					send(server_thread_buffer.toString());
+					대기자수정();
+					release();
+					break;
+				}
+				case 송신자요청: {
+					String id = st.nextToken();
+					int room_Number = Integer.parseInt(st.nextToken());
 
-            Hashtable room = severthread_waitRoom.getClients(room_Number);
-            ServerThread client = null;
-            client = (ServerThread) room.get(idTo);
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(송신자수락);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(id);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(server_thread_room_Number);
+					server_thread_buffer.append(":");
+					try {
+						String data = st.nextToken();
+						server_thread_buffer.append(data);
+					} catch (NoSuchElementException e) {
+					}
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(파일전송거절);
-            severthread_buffer.append(":");
-            severthread_buffer.append(거부됨);
-            severthread_buffer.append(":");
-            severthread_buffer.append(id);
+					broadcast(server_thread_buffer.toString(), room_Number);
+					break;
+				}
+				case 수신자요청: {
+					String id = st.nextToken();
+					int room_Number = Integer.parseInt(st.nextToken());
+					String idTo = st.nextToken();
 
-            client.send(severthread_buffer.toString());
-            break;
-          }
-          case 파일전송수락 : {
-            String id = st.nextToken();
-            int room_Number = Integer.parseInt(st.nextToken());
-            String idTo = st.nextToken();
-            String hostaddr = st.nextToken();
+					Hashtable room = server_thread_waitRoom.getClients(room_Number);
+					ServerThread client = null;
+					if ((client = (ServerThread) room.get(idTo)) != null) {
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(수신자수락);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(id);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(idTo);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(server_thread_room_Number);
+						server_thread_buffer.append(":");
+						try {
+							String data = st.nextToken();
+							server_thread_buffer.append(data);
+						} catch (NoSuchElementException e) {
+						}
+						client.send(server_thread_buffer.toString());
+						send(server_thread_buffer.toString());
+						break;
+					} else {
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(수신자거절);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(idTo);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(server_thread_room_Number);
+						send(server_thread_buffer.toString());
+						break;
+					}
+				}
+				case 파일전송요청: {
+					String id = st.nextToken();
+					int room_Number = Integer.parseInt(st.nextToken());
+					String idTo = st.nextToken();
 
-            Hashtable room = severthread_waitRoom.getClients(room_Number);
-            ServerThread client = null;
-            client = (ServerThread) room.get(idTo);
+					Hashtable room = server_thread_waitRoom.getClients(room_Number);
+					ServerThread client = null;
+					if ((client = (ServerThread) room.get(idTo)) != null) {
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(파일전송요청);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(id);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(server_thread_room_Number);
+						client.send(server_thread_buffer.toString());
+						break;
+					} else {
+						server_thread_buffer.setLength(0);
+						server_thread_buffer.append(파일전송거절);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(사용자없음);
+						server_thread_buffer.append(":");
+						server_thread_buffer.append(idTo);
+						send(server_thread_buffer.toString());
+						break;
+					}
+				}
+				case 파일전송거절: {
+					String id = st.nextToken();
+					int room_Number = Integer.parseInt(st.nextToken());
+					String idTo = st.nextToken();
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(파일전송수락);
-            severthread_buffer.append(":");
-            severthread_buffer.append(id);
-            severthread_buffer.append(":");
-            severthread_buffer.append(hostaddr);
+					Hashtable room = server_thread_waitRoom.getClients(room_Number);
+					ServerThread client = null;
+					client = (ServerThread) room.get(idTo);
 
-            client.send(severthread_buffer.toString());
-            break;
-          }
-          case 코스요청 : {
-            int room_Number = Integer.parseInt(st.nextToken());
-            String idTo = st.nextToken();
-            boolean updateWaitInfo;
-            Hashtable room = severthread_waitRoom.getClients(room_Number);
-            ServerThread client = null;
-            client = (ServerThread) room.get(idTo);
-            updateWaitInfo = severthread_waitRoom.quitRoom(idTo, room_Number, client);
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(파일전송거절);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(거부됨);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(id);
 
-            severthread_buffer.setLength(0);
-            severthread_buffer.append(코스요청수락);
-            client.send(severthread_buffer.toString());
-            client.severthread_room_Number = 0;
+					client.send(server_thread_buffer.toString());
+					break;
+				}
+				case 파일전송수락: {
+					String id = st.nextToken();
+					int room_Number = Integer.parseInt(st.nextToken());
+					String idTo = st.nextToken();
+					String hostaddr = st.nextToken();
 
-            if (updateWaitInfo) {
-              modifyWaitRoom();
-            } else {
-              modifyWaitRoom();
-              modifyRoomUser(room_Number, idTo, 2);
-            }
-            break;
-          }
-        }
-        Thread.sleep(100);
-      }
-    }catch(NullPointerException e){
-    }catch(InterruptedException e){
-      System.out.println(e);
+					Hashtable room = server_thread_waitRoom.getClients(room_Number);
+					ServerThread client = null;
+					client = (ServerThread) room.get(idTo);
 
-      if(severthread_room_Number == 0){
-        severthread_waitRoom.delUser(severthread_ID);
-      } else {
-        boolean temp = severthread_waitRoom.quitRoom(severthread_ID, severthread_room_Number, this);
-        severthread_waitRoom.delUser(severthread_ID);
-      } 
-      release();
-    }catch(IOException e){
-      System.out.println(e);
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(파일전송수락);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(id);
+					server_thread_buffer.append(":");
+					server_thread_buffer.append(hostaddr);
 
-      if(severthread_room_Number == 0){
-        severthread_waitRoom.delUser(severthread_ID);
-      } else {
-        boolean temp = severthread_waitRoom.quitRoom(severthread_ID, severthread_room_Number, this);
-        severthread_waitRoom.delUser(severthread_ID);
-      } 
-      release();
-    }
-  }
+					client.send(server_thread_buffer.toString());
+					break;
+				}
+				case 강제요청: {
+					int room_Number = Integer.parseInt(st.nextToken());
+					String idTo = st.nextToken();
+					boolean updateWaitInfo;
+					Hashtable room = server_thread_waitRoom.getClients(room_Number);
+					ServerThread client = null;
+					client = (ServerThread) room.get(idTo);
+					updateWaitInfo = server_thread_waitRoom.quitRoom(idTo, room_Number, client);
 
-  public void release(){
-    try{
-      if(severthread_in != null) severthread_in.close();
-    }catch(IOException e1){
-    }finally{
-      severthread_in = null;
-    }
-    try{
-      if(severthread_out != null) severthread_out.close();
-    }catch(IOException e1){
-    }finally{
-      severthread_out = null;
-    }
-    try{
-      if(severthread_sock != null) severthread_sock.close();
-    }catch(IOException e1){
-    }finally{
-      severthread_sock = null;
-    }
+					server_thread_buffer.setLength(0);
+					server_thread_buffer.append(강제요청수락);
+					client.send(server_thread_buffer.toString());
+					client.server_thread_room_Number = 0;
 
-    if(severthread_ID != null){
-      System.out.println(severthread_ID + "와 연결을 종료합니다.");
-      severthread_ID = null;
-    }
-  }
+					if (updateWaitInfo) {
+						대기자정보수정();
+					} else {
+						대기자정보수정();
+						방사용자수정(room_Number, idTo, 2);
+					}
+					break;
+				}
+				}
+				Thread.sleep(100);
+			}
+		} catch (NullPointerException e) {
+		} catch (InterruptedException e) {
+			System.out.println(e);
+
+			if (server_thread_room_Number == 0) {
+				server_thread_waitRoom.delUser(server_thread_ID);
+			} else {
+				boolean temp = server_thread_waitRoom.quitRoom(server_thread_ID, server_thread_room_Number, this);
+				server_thread_waitRoom.delUser(server_thread_ID);
+			}
+			release();
+		} catch (IOException e) {
+			System.out.println(e);
+
+			if (server_thread_room_Number == 0) {
+				server_thread_waitRoom.delUser(server_thread_ID);
+			} else {
+				boolean temp = server_thread_waitRoom.quitRoom(server_thread_ID, server_thread_room_Number, this);
+				server_thread_waitRoom.delUser(server_thread_ID);
+			}
+			release();
+		}
+	}
+
+	public void release() {
+		try {
+			if (server_thread_in != null)
+				server_thread_in.close();
+		} catch (IOException e1) {
+		} finally {
+			server_thread_in = null;
+		}
+		try {
+			if (server_thread_out != null)
+				server_thread_out.close();
+		} catch (IOException e1) {
+		} finally {
+			server_thread_out = null;
+		}
+		try {
+			if (server_thread_sock != null)
+				server_thread_sock.close();
+		} catch (IOException e1) {
+		} finally {
+			server_thread_sock = null;
+		}
+
+		if (server_thread_ID != null) {
+			System.out.println(server_thread_ID + "와 연결을 종료합니다.");
+			server_thread_ID = null;
+		}
+	}
 }
-            
